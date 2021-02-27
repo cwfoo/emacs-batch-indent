@@ -1,0 +1,143 @@
+#!/bin/sh
+":"; exec emacs --quick --script "$0" -- "$@"  # -*-emacs-lisp-*-
+;; The above is sh trickery that is valid in sh and as Emacs Lisp code.
+
+;;; emacs-batch-indent --- Command line program for indenting code using Emacs.
+
+;; Version: 0.1.0
+;; URL: https://github.com/cwfoo/emacs-batch-indent
+
+;; Copyright (C) 2021  Foo Chuan Wei
+;;
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+;; The `emacs-batch-indent` is a command line program that uses Emacs in batch
+;; mode to indent code given on standard input.
+;; The indented code is written to standard output.
+;;
+;; Requirements:
+;; * /bin/sh
+;; * GNU Emacs
+;;
+;; Installation:
+;; * Download `emacs-batch-indent`.
+;; * Make the script executable: `chmod +x ./emacs-batch-indent`.
+;; * At this point, you should be able to display the help message by running
+;; `./emacs-batch-indent --help`.
+;;
+;; Usage:
+;; Example for Common Lisp: `emacs-batch-indent cl < myprogram.lisp`.
+;; Run `emacs-batch-indent --help` for more usage information.
+;;
+;; Contributing:
+;; Bug reports, suggestions, and patches should be submitted on GitHub:
+;; https://github.com/cwfoo/emacs-batch-indent
+
+;;; Code:
+
+(require 'cl-macs)
+
+(defun print-usage ()
+  (princ (format "usage: %1$s <language>
+
+Indents code using Emacs.
+Takes input from standard input, and outputs the indented code in
+standard output.
+Indents using spaces (not tabs) by default.
+
+Languages:
+  cl        For Common Lisp code
+  elisp     For Emacs Lisp code
+  scheme    For Scheme code
+
+Options:
+  --tabs    Use tabs to indent (where applicable).
+
+Example usage:
+  %1$s scheme < myprogram.scm
+
+Example usage for Vim's equalprg:
+  autocmd FileType scheme setlocal equalprg=%1$s\\ scheme
+"
+                 load-file-name)))
+
+(defun error-exit (message)
+  "Print error message to standard error, and exit with exit code 1."
+  (princ (format "%s\n" message)
+         #'external-debugging-output)
+  (kill-emacs 1))
+
+(defconst languages
+  ;; List: language name, Emacs mode, advice (optional).
+  ;; (The single argument given to the advice is the function that actually
+  ;; indents the buffer).
+  `(("cl" ,#'lisp-mode ,(lambda (f)
+                          (let ((lisp-indent-function
+                                 #'common-lisp-indent-function))
+                            (funcall f))))
+    ("elisp" ,#'emacs-lisp-mode)
+    ("scheme" ,#'scheme-mode)))
+
+;;; Parse command line arguments.
+(cl-multiple-value-bind (_-- command tabs-arg excess-arg)
+    argv
+  (when excess-arg
+    (error-exit (format "Too many arguments: %s"
+                        ;; Skip over the first argument (i.e. '--').
+                        (mapconcat #'identity (cdr argv) " "))))
+
+  ;; Indent using spaces unless --tabs is given.
+  (if tabs-arg
+      (if (string-equal tabs-arg "--tabs")
+          (setq-default indent-tabs-mode t)
+        (error-exit (format "Invalid argument: %s" tabs-arg)))
+    (setq-default indent-tabs-mode nil))
+
+  (pcase command
+    ((or "-h" "--help")
+     (print-usage)
+     (kill-emacs 0))
+    ('()
+     (error-exit "Missing argument."))
+    (_
+     (let ((lang-info (assoc command languages)))
+       (if (null lang-info)
+           (error-exit (format "Invalid argument: %s" command))
+         (defconst language-info lang-info))))))
+
+(with-temp-buffer
+  (progn
+    ;; Insert text from standard input into the buffer.
+    (let (line)
+      ;; Ignore error caused by EOF.
+      (while (setq line (ignore-errors (read-from-minibuffer "")))
+        (insert line)
+        (insert "\n")))
+
+    ;; Indent the whole buffer.
+    (let ((inhibit-message t))  ; Silence messages (e.g. "Indenting region ...").
+      (cl-multiple-value-bind (language-name mode advice)
+          language-info
+        (funcall mode)
+        (if advice
+            (funcall advice (lambda ()
+                              (indent-region (point-min) (point-max))))
+          (indent-region (point-min) (point-max)))))
+
+    ;; Write buffer to standard output.
+    (princ (buffer-string))))
+
+;; vim: filetype=lisp:
+;;; emacs-batch-indent ends here

@@ -1,0 +1,94 @@
+#!/bin/sh
+# Test cases for emacs-batch-indent.
+# Usage: ./test-emacs-batch-indent
+
+# Absolute path of the directory containing this file.
+DIR="$(dirname "$(readlink -f "$0")")"
+emacs_batch_indent="$DIR/emacs-batch-indent"
+
+# Print an error message to standard output and exit with error code 1.
+# Args:
+#   $1: the error message.
+_err() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+# Run a test case. Check that two values are equal to each other.
+# Args:
+#   $1: the name of the test case.
+#   $2: the first value.
+#   $3: the second value.
+check_equal() {
+    if [ "$2" = "$3" ]; then
+        echo "Test passed: $1"
+    else
+        _err "Test failed (check_equal): $1
+
+\"$2\"
+
+\"$3\""
+    fi
+}
+
+# Common Lisp.
+cl_original=';;;; Common Lisp.
+  (let ((x 1)
+(y 2))
+(if (> x y)
+x
+  y))'
+cl_expected=';;;; Common Lisp.
+(let ((x 1)
+      (y 2))
+  (if (> x y)
+      x
+      y))'
+
+check_equal 'Common Lisp' \
+            "$(printf '%s' "$cl_original" | "$emacs_batch_indent" cl)" \
+            "$cl_expected"
+
+# Emacs Lisp.
+elisp_original=';;;; Emacs Lisp.
+(let ((x 1)
+(y 2))
+(if (> x y)
+(princ (- x y))
+(princ (- y x))))'
+
+elisp_expected=';;;; Emacs Lisp.
+(let ((x 1)
+      (y 2))
+  (if (> x y)
+      (princ (- x y))
+    (princ (- y x))))'
+
+check_equal 'Emacs Lisp' \
+            "$(printf '%s' "$elisp_original" | "$emacs_batch_indent" elisp)" \
+            "$elisp_expected"
+
+# Scheme.
+scheme_original=';;;; Scheme.
+(define (abs x)
+ ;; Absolute value.
+(cond ((= x 0)
+ 0)
+((> x 0)
+x)
+  ((< x 0)
+(* -1 x))))'
+
+scheme_expected=';;;; Scheme.
+(define (abs x)
+  ;; Absolute value.
+  (cond ((= x 0)
+         0)
+        ((> x 0)
+         x)
+        ((< x 0)
+         (* -1 x))))'
+
+check_equal 'Scheme' \
+            "$(printf '%s' "$scheme_original" | "$emacs_batch_indent" scheme)" \
+            "$scheme_expected"
