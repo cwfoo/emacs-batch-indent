@@ -4,7 +4,7 @@
 
 ;;; emacs-batch-indent --- Command line program for indenting code using Emacs.
 
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; URL: https://github.com/cwfoo/emacs-batch-indent
 
 ;; Copyright (C) 2021  Foo Chuan Wei
@@ -119,12 +119,8 @@ Example usage for Vim's equalprg:
 
 (with-temp-buffer
   (progn
-    ;; Insert text from standard input into the buffer.
-    (let (line)
-      ;; Ignore error caused by EOF.
-      (while (setq line (ignore-errors (read-from-minibuffer "")))
-        (insert line)
-        (insert "\n")))
+    ;; Insert contents of standard input into buffer.
+    (insert-file-contents "/dev/stdin")
 
     ;; Indent the whole buffer.
     (let ((inhibit-message t))  ; Silence messages (e.g. "Indenting region ...").
@@ -136,8 +132,8 @@ Example usage for Vim's equalprg:
                               (indent-region (point-min) (point-max))))
           (indent-region (point-min) (point-max)))))
 
-    ;; Write buffer to standard output.
-    (princ (buffer-string))))
+    ;; Write contents of buffer to standard output.
+    (append-to-file nil nil "/dev/stdout")))
 
 ;; vim: filetype=lisp:
 ;;; emacs-batch-indent ends here

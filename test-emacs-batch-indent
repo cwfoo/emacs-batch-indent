@@ -92,3 +92,15 @@ scheme_expected=';;;; Scheme.
 check_equal 'Scheme' \
             "$(printf '%s' "$scheme_original" | "$emacs_batch_indent" scheme)" \
             "$scheme_expected"
+
+# Preserve missing newline at end of file.
+missing_newline="$(printf ";; Line 1.\n;; Line 2.\n;; Line 3.")"
+check_equal 'Preserve missing newline at end of file' \
+            "$(printf '%s' "$missing_newline" | "$emacs_batch_indent" scheme)" \
+            "$missing_newline"
+
+# Preserve CRLF line endings.
+crlf_lines="$(printf ";; Line 1.\r\n;; Line 2.\r\n;; Line 3.")"
+check_equal 'Preserve CRLF line endings' \
+            "$(printf '%s' "$crlf_lines" | "$emacs_batch_indent" scheme)" \
+            "$crlf_lines"
