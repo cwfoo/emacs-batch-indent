@@ -1,0 +1,63 @@
+on: [push, pull_request]
+jobs:
+  run-tests:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        emacs:
+          - version: 25.1
+            sha256: 763344b90db4d40e9fe90c5d14748a9dbd201ce544e2cf0835ab48a0aa4a1c67
+          - version: 25.2
+            sha256: 505bbd6ea6c197947001d0f80bfccb6b30e1add584d6376f54d4fd6e4de72d2d
+          - version: 25.3
+            sha256: f72c6a1b48b6fbaca2b991eed801964a208a2f8686c70940013db26cd37983c9
+          - version: 26.1
+            sha256: 760382d5e8cdc5d0d079e8f754bce1136fbe1473be24bb885669b0e38fc56aa3
+          - version: 26.2
+            sha256: 4f99e52a38a737556932cc57479e85c305a37a8038aaceb5156625caf102b4eb
+          - version: 26.3
+            sha256: 09c747e048137c99ed35747b012910b704e0974dde4db6696fde7054ce387591
+          - version: 27.1
+            sha256: ffbfa61dc951b92cf31ebe3efc86c5a9d4411a1222b8a4ae6716cfd0e2a584db
+    env:
+      EMACS_VERSION: ${{ matrix.emacs.version }}
+      EMACS_SHA256: ${{ matrix.emacs.sha256 }}
+    steps:
+      # Download GNU Emacs.
+      - working-directory: /tmp
+        run: wget --retry-connrefused
+          "https://ftp.gnu.org/gnu/emacs/emacs-${EMACS_VERSION}.tar.gz"
+      # Verify checksum.
+      - working-directory: /tmp
+        run: |
+          checksum="$(sha256sum "emacs-${EMACS_VERSION}.tar.gz" | cut -d ' ' -f 1)"
+          if [ "${checksum}" = "${EMACS_SHA256}" ]; then
+              echo "OK: ${checksum}"
+          else
+              echo "Invalid checksum: ${checksum}"
+              exit 1
+          fi
+      # Extract tar archive.
+      - working-directory: /tmp
+        run: tar xzf "emacs-${EMACS_VERSION}.tar.gz"
+
+      # Compile and install.
+      - working-directory: /tmp/emacs-${{ matrix.emacs.version }}
+        # CFLAGS=-no-pie is necessary to prevent:
+        #
+        #   Makefile:736: recipe for target 'bootstrap-emacs' failed
+        #   make[1]: *** [bootstrap-emacs] Segmentation fault (core dumped)
+        #
+        # Reference: "26.0.50; Bootstrap failed"
+        # (https://debbugs.gnu.org/cgi/bugreport.cgi?bug=24682)
+        run: ./configure CFLAGS=-no-pie
+                         --with-x-toolkit=no
+                         --without-x
+                         --without-all
+      - working-directory: /tmp/emacs-${{ matrix.emacs.version }}
+        run: sudo make install
+      - run: emacs --version
+
+      # Run test.
+      - uses: actions/checkout@v2
+      - run: ./test-emacs-batch-indent
