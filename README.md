@@ -21,7 +21,8 @@ Result written to standard output:
 
 ## Requirements
 * `/bin/sh`
-* GNU Emacs
+* GNU Emacs — The program has been tested with GNU Emacs 25.1, 25.2, 25.3, 26.1,
+  26.2, 26.3, 27.1 on Unix-like systems.
 
 
 ## Installation
@@ -72,9 +73,5 @@ https://github.com/cwfoo/emacs-batch-indent
 
 ## Development
 To run the unit tests: `./test-emacs-batch-indent`.
-
-`emacs-batch-indent` is known to work as intended on:
-* GNU Emacs 26.3 on Ubuntu 20.04.1
-* GNU Emacs 27.1 on FreeBSD 12.2
 
 Project started on 2021-02-15.
